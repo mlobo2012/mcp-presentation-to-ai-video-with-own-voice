@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-presentation-video"
+version = "0.1.0"
+description = "MCP server for converting PowerPoint presentations into narrated AI videos with voice cloning"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.0.0",
+    "pdf2image>=1.17.0",
+    "moviepy>=1.0.3",
+    "Pillow>=10.0.0",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.27.0",
+    "bcrypt>=4.0.0",
+]
+
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.9",
+]
+
+[project.scripts]
+mcp-presentation-video = "mcp_presentation_video:main"
+mcp-presentation-video-remote = "mcp_presentation_video.client.mcp_client:main"
+mcp-presentation-video-server = "mcp_presentation_video.api.app:run_server"
+
+[tool.setuptools.packages.find]
+where = ["src"]
