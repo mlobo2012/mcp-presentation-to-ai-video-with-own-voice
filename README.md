@@ -1,88 +1,90 @@
 # MCP Presentation-to-Video with Voice Cloning
 
-An MCP (Model Context Protocol) server that converts PowerPoint presentations into narrated AI videos. Supports voice cloning via Chatterbox TTS or standard voices via OpenAI TTS.
+**Generate AI-narrated videos from your PowerPoint presentations — using your own voice.**
 
-## Architecture
+Turn any .pptx into a professional narrated MP4. Register a 30-second voice sample, and every video sounds like you gave the presentation yourself. Works with Claude Desktop, Claude Code, and Claude Cowork via MCP.
 
-```
-User's Machine                        Your Server (Mac mini)
-┌─────────────────────┐               ┌────────────────────────────┐
-│ Claude Desktop/Code  │               │ FastAPI + Cloudflare Tunnel│
-│        │             │    HTTPS      │        │                   │
-│  Thin MCP Client ────┼──────────────►│  API Server                │
-│  (pip install)       │               │  ├── LibreOffice           │
-│  - uploads PPTX      │               │  ├── Chatterbox TTS (GPU) │
-│  - polls status      │               │  ├── OpenAI TTS            │
-│  - downloads MP4     │               │  └── MoviePy + FFmpeg      │
-└─────────────────────┘               └────────────────────────────┘
-```
+Free to use. No credit card required.
 
-Users install a lightweight MCP package. Heavy processing runs on the server.
+## Quick Start
 
-## Quick Start (End User)
+### 1. Get a free API key
 
-### 1. Install
+Sign up at [ai-heroes.co/free-tools/mcp-presentation-video](https://www.ai-heroes.co/en-gb/free-tools/mcp-presentation-video) — you'll receive your API key by email.
+
+### 2. Install the MCP client
 
 ```bash
 pip install mcp-presentation-video
 ```
 
-### 2. Get an API key
+### 3. Add to Claude
 
-Request one from the server admin.
-
-### 3. Configure Claude Desktop
-
-Add to `claude_desktop_config.json`:
+**Claude Desktop** — add to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "presentation-video": {
-      "command": "mcp-presentation-video-remote",
+      "command": "python",
+      "args": ["-m", "mcp_presentation_video"],
       "env": {
-        "PRESENTATION_VIDEO_API_KEY": "pv_live_your_key_here",
-        "PRESENTATION_VIDEO_API_URL": "https://your-server.trycloudflare.com"
+        "MCP_API_KEY": "YOUR_API_KEY"
       }
     }
   }
 }
 ```
 
-### 4. Configure Claude Code
+**Claude Code:**
 
 ```bash
-claude mcp add presentation-video \
-  -e PRESENTATION_VIDEO_API_KEY="pv_live_your_key_here" \
-  -e PRESENTATION_VIDEO_API_URL="https://your-server.trycloudflare.com" \
-  -- mcp-presentation-video-remote
+claude mcp add presentation-video -- python -m mcp_presentation_video --api-key YOUR_API_KEY
 ```
 
-### 5. Use it
+## First Use
 
-Tell Claude: "Register my voice using this sample" and provide a .wav file.
-Then: "Turn this presentation into a video with my voice" and attach a .pptx.
+1. **Register your voice:** Tell Claude _"Register my voice using the WAV file at ./my-voice-sample.wav with the name 'my-name'."_ You only need to do this once.
+2. **Create a video:** Tell Claude _"Turn the deck at ./slides.pptx into a narrated video using my registered voice 'my-name'."_
 
-## MCP Tools
+That's it — Claude handles the narration script, voice synthesis, and video encoding.
 
-| Tool | Description |
+## What You Can Do
+
+| Tool | What it does |
 |------|-------------|
-| `generate_video_with_voice` | PPTX → narrated video using your cloned voice (Chatterbox) |
-| `generate_video` | PPTX → narrated video using OpenAI TTS |
-| `register_voice` | Upload a voice sample for voice cloning |
-| `list_voices` | List registered voice profiles |
+| `generate_video_with_voice` | PowerPoint + narration script + your registered voice → MP4 narrated in your voice |
+| `generate_video` | PowerPoint + narration script → MP4 with a standard AI voice |
+| `register_voice` | Upload a WAV voice sample to create a reusable voice profile |
+| `list_voices` | List all your registered voice profiles |
 
-## Server Setup
+## Use Cases
+
+- **Safety documentation** — turn safety briefings into narrated videos teams can watch asynchronously
+- **Training content** — convert training decks into video modules narrated by the trainer
+- **Sales decks** — send prospects a narrated walk-through instead of a static PDF
+- **Onboarding** — turn onboarding slides into welcome videos narrated by a real team member
+- **Product demos** — generate narrated product walk-throughs from feature decks
+- **Client updates** — send clients a narrated video summary instead of another email attachment
+
+## Setup Guides
+
+- [MCP Presentation-to-Video Server](https://www.ai-heroes.co/en-gb/free-tools/mcp-presentation-video) — full feature overview and setup
+- [Claude Code setup guide](https://www.ai-heroes.co/en-gb/free-tools/mcp-presentation-video/claude-code) — for developers and automation workflows
+- [Claude Cowork setup guide](https://www.ai-heroes.co/en-gb/free-tools/mcp-presentation-video/claude-cowork) — for knowledge workers
+
+## Advanced: Self-Hosting the Server
+
+If you want to run the processing server yourself instead of using the hosted service:
 
 ### Prerequisites
 
-- macOS with Apple Silicon (for Chatterbox MPS acceleration)
+- macOS with Apple Silicon (recommended for GPU acceleration)
 - LibreOffice: `brew install --cask libreoffice`
 - Poppler: `brew install poppler`
 - FFmpeg: `brew install ffmpeg`
 - Cloudflare Tunnel: `brew install cloudflare/cloudflare/cloudflared`
 - Python 3.11+
-- Chatterbox TTS venv (see `scripts/bootstrap_chatterbox.sh` in the original repo)
 
 ### Install
 
@@ -96,9 +98,6 @@ python -m venv .venv
 ### Run
 
 ```bash
-# Set OpenAI API key (for standard TTS mode)
-export OPENAI_API_KEY=sk-...
-
 # Start API server
 .venv/bin/python -m uvicorn mcp_presentation_video.api.app:app --host 127.0.0.1 --port 8100
 
@@ -109,19 +108,10 @@ cloudflared tunnel --url http://localhost:8100
 ### API Key Management
 
 ```bash
-# Generate an API key
 python scripts/manage_keys.py create --name "user-name"
-
-# List keys
 python scripts/manage_keys.py list
-
-# Revoke a key
 python scripts/manage_keys.py revoke --id <key_id>
 ```
-
-### launchd (auto-start on boot)
-
-See the project docs for sample launchd plist files to run the API server and tunnel as persistent services.
 
 ## Security
 
@@ -130,7 +120,6 @@ See the project docs for sample launchd plist files to run the API server and tu
 - **Rate limiting** — 60 requests/minute per key
 - **Input validation** — PPTX must be valid ZIP, audio validated
 - **Isolated jobs** — each job runs in its own temp directory
-- **No user input in shell commands** — all paths are server-generated
 
 ## License
 
